@@ -39,6 +39,7 @@ module Data.BitVector
   , bitVec
   , bitVecs
   , ones, zeros
+  , bitVec' 
     -- * Test
   , isNat
   , isPos
@@ -76,6 +77,7 @@ module Data.BitVector
   , nand, nor, xnor
   , (<<.), shl, (>>.), shr, ashr
   , (<<<.), rol, (>>>.), ror
+  , clearBit
   -- * Conversion
   , fromBool
   , fromBits
@@ -88,7 +90,7 @@ module Data.BitVector
 
 import           Control.Exception ( assert )
 
-import           Data.Bits
+import           Data.Bits hiding (clearBit)
 import           Data.Bool ( Bool(..), otherwise, (&&), (||))
 import qualified Data.Bool as Bool
 import           Data.Data ( Data )
@@ -928,3 +930,26 @@ integerWidth !n
                      | otherwise  = go (k+1) (2*k_max+1)
 {-# INLINE integerWidth #-}
 #endif
+
+-- | Create a bit-vector given an integer value from a
+-- type implementing /FiniteBits/, and give it the minimum size
+-- needed.
+--
+bitVec' :: (FiniteBits a, Integral a) => a -> BV
+bitVec' a  | a >= 0    = BV n (a' `mod` 2^n)
+           | otherwise = negate $ BV n ((-a') `mod` 2^n)
+  where a' = fromIntegral a
+        n = finiteBitSize a - countLeadingZeros a
+{-# INLINE bitVec' #-}
+
+-- | clear a bit so as to give an intuitively sensible result - 
+-- the result of `bit i`
+-- is extended to the same length as bv, *then* complemented and
+-- anded with bv.
+clearBit :: BV -> Int -> BV 
+clearBit bv i = 
+  let b = (bit i :: BV)
+  in  bv .&. (complement $ zeroExtend (size bv - size b) b)
+{-# INLINE clearBit #-}
+
+
